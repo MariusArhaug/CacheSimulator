@@ -1,0 +1,12 @@
+{
+  "configurations": [
+    {
+      "name": "C gcc build",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${fileDirName}/${fileBasenameNoExtension}",
+      "args": ["1024", "dm", "uc"],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
