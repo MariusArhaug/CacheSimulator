@@ -26,21 +26,11 @@ typedef struct {
   uint64_t data_hits; 
 } cache_stat_t;
 
-struct cache{
+typedef struct {
   int valid;
   char *tag;
   char *block;
-};
-
-typedef struct {
-  int *arr;       // where T is the data type you're working with
-  size_t length;  // the physical array length
-  size_t head;    // location to pop from
-  size_t tail;    // location to push to
-  size_t count;   // number of elements in queue
-} queue;
-
-queue q;
+} cache;
 
 uint32_t cache_size; 
 uint32_t block_size = 64;
@@ -52,25 +42,11 @@ uint32_t block_number;
 uint32_t bit_index;
 uint32_t tag;
 
+uint32_t q_index;
+
 // USE THIS FOR YOUR CACHE STATISTICS
 cache_stat_t cache_statistics;
 
-
-void enqueue(queue q, int new_value)
-{
-  q.arr[q.tail] = new_value;
-  q.tail = ( q.tail + 1 ) % q.length;
-  q.count++;
-}
-
-int dequeue(queue q) 
-{
-  int value = q.arr[q.head];
-  q.count--;
-  q.head = ( q.head + 1 ) % q.length;
-  return value;
-}
-  
 /* Reads a memory access from the trace file and returns
  * 1) access type (instruction or data access
  * 2) memory address
@@ -131,7 +107,7 @@ const char* organization_type_to_string(cache_org_t org_type)
 /*
  * Intitalize cache structs with tag memory, value and valid flags 
 */
-void intialize_cache(struct cache cache[], uint32_t tag_value)
+void intialize_cache(cache cache[], uint32_t tag_value)
 {
   for (int i = 0; i < block_number; i++) {
     // set buffer size for each tag with size of char * tag size 
@@ -167,7 +143,7 @@ void update_cache_hits(mem_access_t access) {
   }
 }
 
-void update_cache_statistics(struct cache cache[], mem_access_t access) 
+void update_cache_statistics(cache cache[], mem_access_t access) 
 {
   uint32_t offset_bits = (access.address >> 0) & ((1 << bit_offset) -1);
   uint32_t index_bits = (access.address >> bit_offset) & ((1 << bit_index) -1);
@@ -193,29 +169,32 @@ void update_cache_statistics(struct cache cache[], mem_access_t access)
 
     case fa: {
       sprintf(tag_str, "%x", (tag_bits + index_bits));
-
-      // check for hits in whole cache arr
+     
+      int is_in_cache = 0;
       for (int i = 0; i < block_number; i++) {
         if (cache[i].valid && (strcmp(cache[i].tag, tag_str) == 0)) {
           update_cache_hits(access);
-          return;
-        }
-      }
-      
-      // update empty cache blocks 
-      for (int i = 0; i < block_number; i++) {
-        if (!cache[i].valid) {
-         strcpy(cache[i].tag, tag_str);
-         cache[i].valid = 1;
-         enqueue(q, i);
-         return;
+          is_in_cache = 1;
+          break;
         }
       }
 
-      int j = dequeue(q);
-      strcpy(cache[j].tag, tag_str);
-      cache[j].valid = 1;
-      enqueue(q, j);
+      if (is_in_cache == 0) {
+        int has_updated_cache = 0;
+        for (int i = 0; i < block_number; i++) {
+          if (cache[i].valid == 0) {
+            strcpy(cache[i].tag, tag_str); 
+            cache[i].valid = 1;
+            has_updated_cache = 1;
+            break;
+          }
+        }
+        if (has_updated_cache == 0) {
+          strcpy(cache[q_index].tag, tag_str);
+          cache[q_index].valid = 1;
+          q_index = (q_index + 1) % block_number;
+        }
+      }
     }
   }
 }
@@ -266,17 +245,11 @@ void main(int argc, char** argv)
   }
   block_number = cache_size / block_size;  
   
-  q.arr = malloc( sizeof *q.arr * block_number );
+  q_index = 0;
 
-  if (q.arr) {
-    q.length = block_number;
-    q.head = 0;
-    q.tail = 0;
-  }
-
-  struct cache unified_cache[block_number];
-  struct cache instruction_cache[block_number];
-  struct cache data_cache[block_number];
+  cache unified_cache[block_number];
+  cache instruction_cache[block_number];
+  cache data_cache[block_number];
  
   switch (cache_mapping) {
     case dm: {
@@ -301,14 +274,13 @@ void main(int argc, char** argv)
     }
   }
   
-  mem_access_t access;
   
   while(1) {
-    access = read_transaction(ptr_file);
-    
+    mem_access_t access = read_transaction(ptr_file);
     if (access.address == 0) {
       break;
     }
+    // printf("%x\n", access.address);
 
     switch (cache_org) {
       case uc: update_cache_statistics(unified_cache, access); break;
@@ -321,6 +293,8 @@ void main(int argc, char** argv)
 
     }
   }
+  // printf("\n%s\n", unified_cache[0].tag);
+  // printf("%s\n", unified_cache[1].tag);
 
   printf("\nCache Configurations\n\n");
   printf("------------------------\n");
