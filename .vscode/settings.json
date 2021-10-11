@@ -2,7 +2,7 @@
   "code-runner.executorMap": {
     "javascript": "node",
     "java": "cd $dir && javac $fileName && java $fileNameWithoutExt",
-    "c": "gcc $fileName -o $fileNameWithoutExt && $fileNameWithoutExt 1024 dm uc",
+    "c": "cd $dir && gcc $fileName -lm -o $fileNameWithoutExt && $dir$fileNameWithoutExt 4096 dm uc",
     "cpp": "cd $dir && g++ $fileName -o $fileNameWithoutExt && $dir$fileNameWithoutExt",
     "objective-c": "cd $dir && gcc -framework Cocoa $fileName -o $fileNameWithoutExt && $dir$fileNameWithoutExt",
     "php": "php",
@@ -81,5 +81,10 @@
     ".sass": "sass --style expanded",
     ".cu": "cd $dir && nvcc $fileName -o $fileNameWithoutExt && $dir$fileNameWithoutExt"
   },
-  "code-runner.saveFileBeforeRun": true
+  "code-runner.saveFileBeforeRun": true,
+  "files.associations": {
+    "*.sql": "sql",
+    "math.h": "c",
+    "stdio.h": "c"
+  }
 }

@@ -1,36 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <inttypes.h>
-#include <math.h>
-
-typedef enum {dm, fa} cache_map_t;
-typedef enum {uc, sc} cache_org_t;
-typedef enum {instruction, data} access_t;
-
-typedef struct {
-  uint32_t address;
-  access_t accesstype;
-} mem_access_t;
-
-typedef struct {
-  uint64_t accesses;
-  uint64_t hits;
-
-  // Additional stats for split cache
-  uint64_t instruction_accesses;
-  uint64_t instruction_hits;
-
-  uint64_t data_accesses;
-  uint64_t data_hits; 
-} cache_stat_t;
-
-typedef struct {
-  int valid;
-  char *tag;
-  char *block;
-} cache;
+#include "cache.h"
 
 uint32_t cache_size; 
 uint32_t block_size = 64;
@@ -47,67 +15,10 @@ uint32_t q_index;
 // USE THIS FOR YOUR CACHE STATISTICS
 cache_stat_t cache_statistics;
 
-/* Reads a memory access from the trace file and returns
- * 1) access type (instruction or data access
- * 2) memory address
- */
-mem_access_t read_transaction(FILE *ptr_file) {
-  char buf[1000];
-  char* token;
-  char* string = buf;
-  mem_access_t access;
-  if (fgets(buf,1000, ptr_file)!=NULL) {
-
-    /* Get the access type */
-    token = strsep(&string, " \n");        
-    if (strcmp(token,"I") == 0) {
-      access.accesstype = instruction;
-    } else if (strcmp(token,"D") == 0) {
-      access.accesstype = data;
-    } else {
-      printf("Unkown access type\n");
-      exit(0);
-    }  
-
-    token = strsep(&string, " \n");
-    access.address = (uint32_t)strtol(token, NULL, 16);
-
-    return access;
-  }
-
-  /* If there are no more entries in the file,  
-    * return an address 0 that will terminate the infinite loop in main
-    */
-  access.address = 0;
-  return access;
-}
-
-/*
-* Helper method to print various types
-*/
-
-const char* mapping_type_to_string(cache_map_t mapping_type) 
-{
-  switch(mapping_type) 
-  {
-    case fa: return "fully associative";
-    case dm: return "direct mapped";
-  }
-}
-
-const char* organization_type_to_string(cache_org_t org_type) 
-{
-  switch (org_type) 
-  {
-    case uc: return "unified cache";
-    case sc: return "split cache";
-  }
-}
-
 /*
  * Intitalize cache structs with tag memory, value and valid flags 
 */
-void intialize_cache(cache cache[], uint32_t tag_value)
+void intialize_cache(cache cache[], uint32_t tag_value, uint32_t block_number)
 {
   for (int i = 0; i < block_number; i++) {
     // set buffer size for each tag with size of char * tag size 
@@ -124,7 +35,8 @@ void intialize_cache(cache cache[], uint32_t tag_value)
 /*
  * Update cache acccesses depending on access type
 */
-void update_cache_accesses(mem_access_t access) {
+void update_cache_accesses(mem_access_t access) 
+{
   cache_statistics.accesses++;
   switch(access.accesstype) {
     case instruction: cache_statistics.instruction_accesses++; break;
@@ -135,7 +47,8 @@ void update_cache_accesses(mem_access_t access) {
 /* 
  * Update cache hits depending on access type
 */
-void update_cache_hits(mem_access_t access) {
+void update_cache_hits(mem_access_t access) 
+{
   cache_statistics.hits++; 
   switch (access.accesstype) {
     case instruction: cache_statistics.instruction_hits++; break;
@@ -199,9 +112,8 @@ void update_cache_statistics(cache cache[], mem_access_t access)
   }
 }
 
-void main(int argc, char** argv)
-{
-  // Reset statistics:
+void start(char** argv) {
+// Reset statistics:
   memset(&cache_statistics, 0, sizeof(cache_stat_t));
 
   /* Read command-line parameters and initialize:
@@ -238,13 +150,13 @@ void main(int argc, char** argv)
   }
     
     /* Open the file mem_trace.txt to read memory accesses */
-  FILE *ptr_file = fopen("mem_trace2.txt","r");
+  FILE *ptr_file = fopen("mem_trace.txt","r");
   if (!ptr_file) {
     printf("Unable to open the trace file\n");
     exit(1);
   }
   block_number = cache_size / block_size;  
-  
+
   q_index = 0;
 
   cache unified_cache[block_number];
@@ -293,42 +205,3 @@ void main(int argc, char** argv)
 
     }
   }
-  // printf("\n%s\n", unified_cache[0].tag);
-  // printf("%s\n", unified_cache[1].tag);
-
-  printf("\nCache Configurations\n\n");
-  printf("-----------------\n");
-  printf("Size:                 %d bytes\n", cache_size);
-  printf("Mapping:              %s\n", mapping_type_to_string(cache_mapping));
-  printf("Organization:         %s\n", organization_type_to_string(cache_org));
-  printf("Policy:               %s\n", "FIFO");
-  printf("Block size:           %d bytes\n", block_size);
-  printf("Num of blocks:        %d blocks\n", block_number);
-  printf("Num bits for offset:  %d bits\n", bit_offset);
-  printf("Num bits for index:   %d bits\n", bit_index);
-  printf("Num bits for tag:     %d bits\n\n", tag);
-  printf("-----------------\n");
-
-  printf("\nCache Statistics\n");
-  printf("-----------------\n\n");
-  printf("Accesses: %ld\n", cache_statistics.accesses);
-  printf("Hits:     %ld\n", cache_statistics.hits);
-  printf("Hit Rate: %.4f\n\n", (double) cache_statistics.hits / cache_statistics.accesses);
-
-  /* If split cache, print their stats */
-  switch (cache_org) {
-    case sc: {
-      printf("DCache Accesses: %ld\n", cache_statistics.data_accesses);
-      printf("DCache Hits:     %ld\n", cache_statistics.data_hits);
-      printf("DCache Hit rate: %.4f\n\n", (double) cache_statistics.data_hits / cache_statistics.data_accesses);
-
-      printf("ICache Accesses: %ld\n", cache_statistics.instruction_accesses);
-      printf("ICache Hits:     %ld\n", cache_statistics.instruction_hits);
-      printf("ICache Hit rate: %.4f\n", (double) cache_statistics.instruction_hits / cache_statistics.instruction_accesses);
-    } break;
-  }
-
-  /* Close the trace file */
-  fclose(ptr_file);
-
-}
