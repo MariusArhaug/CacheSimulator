@@ -29,4 +29,4 @@ Or you can run it in the termianl with these commands for compiling and executin
 |---	|---	|
 |  cache size 	        | 128 - 4096 (power of 2)     	              |  
 |  cache mapping 	      | dm (Direct Mapped or fa (Fully associative) | 
-|  cache organization 	| uc (Unified cache) or se (Split Cache)  	  | 
+|  cache organization 	| uc (Unified cache) or sc (Split Cache)  	  | 
