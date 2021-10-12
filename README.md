@@ -21,7 +21,7 @@ Or you can run it in the termianl with these commands for compiling and executin
 
 - 1024 is the cache size in bytes
 - dm tells that the cache is directly mappend 
-- uc signifies a unified code
+- uc signifies a unified cache
 
 ### The parameters can take the following values:
 
